@@ -14,10 +14,10 @@ import {
   PILLAR_SHORT, PILLAR_KEYS,
 } from '../lib/dashboardUtils'
 import { PILLARS, MATURITY_LEVELS, DEPARTMENTS } from '../lib/surveyData'
-import { DIMENSIONS, CLUSTER_LABELS } from '../lib/layer2Data'
+import { DIMENSIONS, CLUSTER_LABELS, CAPABILITY_LABELS } from '../lib/layer2Data'
 
-const CAP_LABELS = ['AI Beginner', 'AI Aware', 'AI Explorer', 'AI Practitioner', 'AI Champion']
-const CAP_COLORS = ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#00ADA9']
+const CAP_LABELS = CAPABILITY_LABELS.map((c) => c.label)
+const CAP_COLORS = CAPABILITY_LABELS.map((c) => c.color)
 const CLUSTER_ORDER = ['A','B','C','D','E']
 
 const ADMIN_PIN = '123456'

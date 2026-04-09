@@ -11,7 +11,7 @@ import {
   Tooltip,
 } from 'recharts'
 import { PILLARS, MATURITY_LEVELS, pillarPct } from '../lib/surveyData'
-import { DIMENSIONS } from '../lib/layer2Data'
+import { DIMENSIONS, CAPABILITY_LABELS } from '../lib/layer2Data'
 
 const PILLAR_SHORT = ['Strategy', 'Data & Tech', 'People', 'Processes', 'Governance']
 
@@ -334,13 +334,7 @@ export default function Complete() {
               <div className="mt-5 pt-4 border-t border-gray-100">
                 <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">Capability Scale</p>
                 <div className="flex gap-1 flex-wrap">
-                  {[
-                    { label: 'AI Beginner', color: '#EF4444' },
-                    { label: 'AI Aware', color: '#F97316' },
-                    { label: 'AI Explorer', color: '#EAB308' },
-                    { label: 'AI Practitioner', color: '#22C55E' },
-                    { label: 'AI Champion', color: '#00ADA9' },
-                  ].map(({ label, color }) => (
+                  {CAPABILITY_LABELS.map(({ label, color }) => (
                     <div
                       key={label}
                       className="flex-1 min-w-0 h-5 rounded-full text-center text-white text-xs font-bold leading-5 px-1 truncate"
