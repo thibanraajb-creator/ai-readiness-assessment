@@ -9,11 +9,16 @@ import {
   LineChart, Line, Legend,
 } from 'recharts'
 import {
-  fetchResponses, fetchCycles, fetchQualitative,
+  fetchResponses, fetchCycles, fetchQualitative, fetchLayer2,
   computeOrgStats, computeDeptStats, computeTrend,
   PILLAR_SHORT, PILLAR_KEYS,
 } from '../lib/dashboardUtils'
 import { PILLARS, MATURITY_LEVELS, DEPARTMENTS } from '../lib/surveyData'
+import { DIMENSIONS, CLUSTER_LABELS } from '../lib/layer2Data'
+
+const CAP_LABELS = ['AI Beginner', 'AI Aware', 'AI Explorer', 'AI Practitioner', 'AI Champion']
+const CAP_COLORS = ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#00ADA9']
+const CLUSTER_ORDER = ['A','B','C','D','E']
 
 const ADMIN_PIN = '123456'
 
@@ -360,6 +365,8 @@ export default function Admin() {
   const [cycles, setCycles] = useState([])
   const [qualData, setQualData] = useState([])
   const [headcounts, setHeadcounts] = useState({})
+  const [layer2Rows, setLayer2Rows] = useState([])
+  const [filteredL2, setFilteredL2] = useState([])
 
   // Filters
   const [selectedCycleId, setSelectedCycleId] = useState(null)
@@ -383,14 +390,16 @@ export default function Admin() {
   async function loadAll() {
     setLoading(true)
     try {
-      const [cyc, allResp, qual] = await Promise.all([
+      const [cyc, allResp, qual, l2] = await Promise.all([
         fetchCycles(),
         fetchResponses(null),  // all cycles
         fetchQualitative(),
+        fetchLayer2(),
       ])
       setCycles(cyc)
       setAllResponses(allResp)
       setQualData(qual)
+      setLayer2Rows(l2)
 
       const active = cyc.find((c) => c.is_active) || cyc[cyc.length - 1]
       if (active) setSelectedCycleId(active.id)
@@ -409,7 +418,12 @@ export default function Admin() {
     if (filterDept) filtered = filtered.filter((r) => r.department === filterDept)
     setOrgStats(computeOrgStats(filtered))
     setDeptStats(computeDeptStats(filtered))
-  }, [allResponses, selectedCycleId, filterDept])
+
+    let fl2 = layer2Rows
+    if (selectedCycleId) fl2 = fl2.filter((r) => r.cycle === selectedCycleId)
+    if (filterDept) fl2 = fl2.filter((r) => r.department === filterDept)
+    setFilteredL2(fl2)
+  }, [allResponses, layer2Rows, selectedCycleId, filterDept])
 
   function handleHeadcountChange(dept, value) {
     setHeadcounts((prev) => ({ ...prev, [dept]: Number(value) || 0 }))
@@ -454,6 +468,77 @@ export default function Admin() {
     score: d.overall,
     count: d.count,
   }))
+
+  // ── Layer 2 computations ──────────────────────────────────
+  // Panel 1: Capability distribution
+  const capDistMap = {}
+  filteredL2.forEach((r) => { capDistMap[r.capability_label] = (capDistMap[r.capability_label] || 0) + 1 })
+  const capDistData = CAP_LABELS.map((label, i) => ({ label, count: capDistMap[label] || 0, color: CAP_COLORS[i] }))
+
+  // Panel 2: Capability score by department
+  const deptCapMap = {}
+  filteredL2.forEach((r) => {
+    if (!deptCapMap[r.department]) deptCapMap[r.department] = { sum: 0, count: 0 }
+    deptCapMap[r.department].sum += r.overall_capability_score || 0
+    deptCapMap[r.department].count++
+  })
+  const capByDept = Object.entries(deptCapMap).map(([dept, v]) => {
+    const avg = v.sum / v.count
+    return {
+      dept: dept.length > 20 ? dept.substring(0, 18) + '…' : dept,
+      fullDept: dept,
+      avgScore: Math.round(avg * 10) / 10,
+      color: avg > 3 ? '#00ADA9' : avg >= 2 ? '#EAB308' : '#EF4444',
+    }
+  }).sort((a, b) => b.avgScore - a.avgScore)
+
+  // Panel 3: Perception vs capability gap (per dept)
+  const gapChartData = deptStats
+    .map((ds) => {
+      const cap = deptCapMap[ds.dept]
+      if (!cap) return null
+      const capPct = Math.round((cap.sum / cap.count / 4) * 100)
+      return {
+        dept: ds.dept.length > 14 ? ds.dept.substring(0, 12) + '…' : ds.dept,
+        fullDept: ds.dept,
+        orgPct: ds.overall,
+        capabilityPct: capPct,
+        gap: Math.abs(ds.overall - capPct),
+        flagged: Math.abs(ds.overall - capPct) > 20,
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.gap - a.gap)
+
+  // Panel 4: Learning needs
+  const learningMap = {}
+  filteredL2.forEach((r) => {
+    const f = r.primary_learning_focus || 'Unknown'
+    learningMap[f] = (learningMap[f] || 0) + 1
+  })
+  const learningData = Object.entries(learningMap)
+    .map(([focus, count]) => ({ focus, count }))
+    .sort((a, b) => b.count - a.count)
+
+  // Panel 5: AI Champions by cluster
+  const champByCluster = {}
+  filteredL2.filter((r) => r.is_champion).forEach((r) => {
+    const cl = r.cluster || '?'
+    champByCluster[cl] = (champByCluster[cl] || 0) + 1
+  })
+  const totalChampions = Object.values(champByCluster).reduce((a, b) => a + b, 0)
+
+  // Panel 6: Open text insights
+  const openTexts = filteredL2.flatMap((r) => {
+    const out = []
+    if (['B','D','E'].includes(r.cluster) && r.l2_q4 && r.l2_q4.trim().length > 3) {
+      out.push({ cluster: r.cluster, dept: r.department, q: 'Q4', text: r.l2_q4 })
+    }
+    if (r.cluster === 'C' && r.l2_q8 && r.l2_q8.trim().length > 3) {
+      out.push({ cluster: 'C', dept: r.department, q: 'Q8 (AI Creative Tools)', text: r.l2_q8 })
+    }
+    return out
+  })
 
   // ── PIN guard ─────────────────────────────────────────────
   if (!unlocked) {
@@ -823,6 +908,305 @@ export default function Admin() {
                   )}
                   filterDept={filterDept}
                 />
+              </div>
+
+              {/* ══════════════════════════════════════════════
+                  LAYER 2 — Individual AI Capability
+              ══════════════════════════════════════════════ */}
+              <div className="mt-4 mb-4">
+                <div
+                  className="rounded-2xl px-6 py-4 mb-6 flex items-center gap-3"
+                  style={{ background: 'linear-gradient(135deg, #7C3AED22, #7C3AED11)', border: '1px solid #7C3AED44' }}
+                >
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
+                    style={{ background: '#7C3AED' }}
+                  >2</div>
+                  <div>
+                    <h2 className="font-extrabold text-lg" style={{ color: '#1B3A5C' }}>
+                      Individual AI Capability (Layer 2)
+                    </h2>
+                    <p className="text-xs text-gray-400">
+                      {filteredL2.length} respondent{filteredL2.length !== 1 ? 's' : ''} completed Part 2
+                    </p>
+                  </div>
+                </div>
+
+                {filteredL2.length === 0 ? (
+                  <div className="bg-white rounded-3xl border border-gray-100 p-12 text-center text-gray-400">
+                    No Layer 2 responses yet for the current filter.
+                  </div>
+                ) : (
+                  <>
+                    {/* L2 Panel 1 + 2: Capability distribution & by dept */}
+                    <div className="grid md:grid-cols-2 gap-6 mb-6">
+
+                      {/* Panel 1: Capability Distribution */}
+                      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                        <h3 className="text-sm font-bold mb-1" style={{ color: '#1B3A5C' }}>
+                          Capability Distribution
+                        </h3>
+                        <p className="text-xs text-gray-400 mb-4">Count of respondents per capability level</p>
+                        <ResponsiveContainer width="100%" height={220}>
+                          <BarChart data={capDistData} margin={{ top: 16, right: 8, left: -20, bottom: 40 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                            <XAxis
+                              dataKey="label"
+                              tick={{ fill: '#6B7280', fontSize: 9, fontFamily: 'Inter' }}
+                              angle={-30}
+                              textAnchor="end"
+                              interval={0}
+                              height={55}
+                            />
+                            <YAxis
+                              allowDecimals={false}
+                              tick={{ fill: '#9CA3AF', fontSize: 10, fontFamily: 'Inter' }}
+                            />
+                            <Tooltip
+                              formatter={(v, _, props) => [v, props.payload?.label]}
+                              contentStyle={{ borderRadius:'12px', border:'none', boxShadow:'0 4px 20px rgba(0,0,0,0.1)', fontFamily:'Inter', fontSize:12 }}
+                            />
+                            <Bar dataKey="count" radius={[6,6,0,0]}>
+                              <LabelList dataKey="count" position="top" style={{ fontSize: 11, fontWeight: 700, fill: '#1B3A5C' }} />
+                              {capDistData.map((entry, i) => (
+                                <Cell key={i} fill={entry.color} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Panel 2: Capability by Department */}
+                      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                        <h3 className="text-sm font-bold mb-1" style={{ color: '#1B3A5C' }}>
+                          Capability Score by Department
+                        </h3>
+                        <p className="text-xs text-gray-400 mb-4">
+                          Avg score (1–4). <span style={{ color:'#EF4444' }}>Red</span> &lt;2.0 ·{' '}
+                          <span style={{ color:'#EAB308' }}>Amber</span> 2.0–3.0 ·{' '}
+                          <span style={{ color:'#00ADA9' }}>Teal</span> &gt;3.0
+                        </p>
+                        <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                          {capByDept.map((d) => (
+                            <div key={d.fullDept}>
+                              <div className="flex justify-between text-xs mb-0.5">
+                                <span className="font-medium text-gray-700 truncate mr-2" title={d.fullDept}>{d.dept}</span>
+                                <span className="font-bold shrink-0" style={{ color: d.color }}>{d.avgScore}/4</span>
+                              </div>
+                              <div className="w-full bg-gray-100 rounded-full h-2">
+                                <div
+                                  className="h-2 rounded-full"
+                                  style={{ width: `${(d.avgScore / 4) * 100}%`, background: d.color }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Panel 3: Perception vs Capability Gap */}
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
+                      <h3 className="text-sm font-bold mb-1" style={{ color: '#1B3A5C' }}>
+                        Perception vs Capability Gap
+                      </h3>
+                      <p className="text-xs text-gray-400 mb-1">
+                        Organisation readiness score (Layer 1) vs personal capability score (Layer 2) per department.
+                      </p>
+                      <p className="text-xs mb-4" style={{ color: '#EF4444' }}>
+                        ⚠ Departments flagged red have a gap &gt;20 points.
+                      </p>
+                      {gapChartData.length < 2 ? (
+                        <p className="text-gray-400 text-sm text-center py-8">
+                          Need responses with both Layer 1 and Layer 2 data in multiple departments.
+                        </p>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={260}>
+                          <LineChart data={gapChartData} margin={{ top: 10, right: 24, left: -10, bottom: 60 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                            <XAxis
+                              dataKey="dept"
+                              tick={{ fill: '#6B7280', fontSize: 9, fontFamily: 'Inter' }}
+                              angle={-40}
+                              textAnchor="end"
+                              interval={0}
+                              height={65}
+                            />
+                            <YAxis
+                              domain={[0, 100]}
+                              tick={{ fill: '#9CA3AF', fontSize: 10, fontFamily: 'Inter' }}
+                              tickFormatter={(v) => `${v}%`}
+                            />
+                            <Tooltip
+                              formatter={(v, name) => [`${v}%`, name]}
+                              labelFormatter={(label, payload) => {
+                                const p = payload?.[0]?.payload
+                                return p ? (p.flagged ? `⚠ ${p.fullDept}` : p.fullDept) : label
+                              }}
+                              contentStyle={{ borderRadius:'12px', border:'none', boxShadow:'0 4px 20px rgba(0,0,0,0.1)', fontFamily:'Inter', fontSize:12 }}
+                            />
+                            <Legend />
+                            <Line
+                              type="monotone"
+                              dataKey="orgPct"
+                              name="Org Readiness"
+                              stroke="#00ADA9"
+                              strokeWidth={2.5}
+                              dot={(props) => {
+                                const { cx, cy } = props
+                                return <circle key={`dot-org-${props.index}`} cx={cx} cy={cy} r={4} fill="#00ADA9" />
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="capabilityPct"
+                              name="Personal Capability"
+                              stroke="#7C3AED"
+                              strokeWidth={2.5}
+                              dot={(props) => {
+                                const { cx, cy, payload } = props
+                                return <circle key={`dot-cap-${props.index}`} cx={cx} cy={cy} r={4} fill={payload.flagged ? '#EF4444' : '#7C3AED'} />
+                              }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      )}
+
+                      {/* Flagged departments list */}
+                      {gapChartData.some((d) => d.flagged) && (
+                        <div
+                          className="mt-4 rounded-2xl p-4"
+                          style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}
+                        >
+                          <p className="text-xs font-bold text-red-700 mb-2">Flagged — Gap &gt;20pts:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {gapChartData.filter((d) => d.flagged).map((d) => (
+                              <span key={d.fullDept} className="text-xs bg-red-100 text-red-700 font-medium px-2 py-1 rounded-lg">
+                                {d.fullDept} ({d.orgPct}% org vs {d.capabilityPct}% personal)
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Panel 4 + 5: Learning needs + Champions */}
+                    <div className="grid md:grid-cols-2 gap-6 mb-6">
+
+                      {/* Panel 4: Learning Needs */}
+                      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                        <h3 className="text-sm font-bold mb-1" style={{ color: '#1B3A5C' }}>
+                          Learning Needs Summary
+                        </h3>
+                        <p className="text-xs text-gray-400 mb-4">Primary learning focus areas, sorted by frequency</p>
+                        {learningData.length === 0 ? (
+                          <p className="text-gray-400 text-sm text-center py-6">No data yet</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-gray-100">
+                                  <th className="text-left py-2 font-semibold text-xs text-gray-400 uppercase tracking-wider">Focus Area</th>
+                                  <th className="text-center py-2 font-semibold text-xs text-gray-400 uppercase tracking-wider">Count</th>
+                                  <th className="text-right py-2 font-semibold text-xs text-gray-400 uppercase tracking-wider">Share</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {learningData.map(({ focus, count }) => (
+                                  <tr key={focus} className="border-b border-gray-50 hover:bg-gray-50/50">
+                                    <td className="py-2.5 font-medium text-gray-700">{focus}</td>
+                                    <td className="py-2.5 text-center font-bold" style={{ color: '#7C3AED' }}>{count}</td>
+                                    <td className="py-2.5 text-right text-gray-400 text-xs">
+                                      {Math.round((count / filteredL2.length) * 100)}%
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Panel 5: AI Champions by Cluster */}
+                      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                        <h3 className="text-sm font-bold mb-1" style={{ color: '#1B3A5C' }}>
+                          AI Champions by Role Group
+                        </h3>
+                        <p className="text-xs text-gray-400 mb-4">
+                          Respondents scoring AI Champion level ({totalChampions} total)
+                        </p>
+                        {totalChampions === 0 ? (
+                          <p className="text-gray-400 text-sm text-center py-6">No AI Champions yet</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {CLUSTER_ORDER.map((cl) => {
+                              const cnt = champByCluster[cl] || 0
+                              const clusterTotal = filteredL2.filter((r) => r.cluster === cl).length
+                              return (
+                                <div key={cl}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className="w-6 h-6 rounded-full text-white font-bold text-xs flex items-center justify-center"
+                                        style={{ background: '#00ADA9' }}
+                                      >{cl}</span>
+                                      <span className="text-sm font-medium text-gray-700">
+                                        {CLUSTER_LABELS[cl]}
+                                      </span>
+                                    </div>
+                                    <span className="text-sm font-bold" style={{ color: '#00ADA9' }}>
+                                      {cnt}/{clusterTotal}
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-100 rounded-full h-2">
+                                    <div
+                                      className="h-2 rounded-full"
+                                      style={{
+                                        width: clusterTotal > 0 ? `${(cnt / clusterTotal) * 100}%` : '0%',
+                                        background: '#00ADA9',
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Panel 6: Open Text Insights */}
+                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-8">
+                      <h3 className="text-sm font-bold mb-1" style={{ color: '#1B3A5C' }}>
+                        Layer 2 Open Text Insights
+                      </h3>
+                      <p className="text-xs text-gray-400 mb-6">
+                        Free-text responses from Clusters B/D/E (Q4) and Cluster C (Q8 — AI Creative Tools)
+                      </p>
+                      {openTexts.length === 0 ? (
+                        <p className="text-gray-400 text-sm text-center py-8">No open-text responses yet.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {openTexts.map((t, i) => (
+                            <div key={i} className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span
+                                  className="text-xs font-bold text-white px-2 py-0.5 rounded-full"
+                                  style={{ background: '#7C3AED' }}
+                                >
+                                  Cluster {t.cluster}
+                                </span>
+                                <span className="text-xs font-medium text-gray-500">{t.q}</span>
+                              </div>
+                              <p className="text-sm text-gray-700 leading-relaxed">{t.text}</p>
+                              <p className="text-xs text-gray-400 mt-2">{t.dept}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}
