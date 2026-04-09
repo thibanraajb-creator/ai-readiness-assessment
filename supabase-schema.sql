@@ -118,3 +118,58 @@ CREATE INDEX IF NOT EXISTS idx_responses_submitted   ON responses(submitted_at);
 CREATE INDEX IF NOT EXISTS idx_qualitative_resp_id   ON qualitative_responses(response_id);
 CREATE INDEX IF NOT EXISTS idx_qualitative_pillar    ON qualitative_responses(pillar);
 CREATE INDEX IF NOT EXISTS idx_qualitative_dept      ON qualitative_responses(department);
+
+-- ============================================================
+-- Table: individual_capability
+-- Layer 2 — Individual AI Capability Assessment results
+-- ============================================================
+CREATE TABLE IF NOT EXISTS individual_capability (
+  id                        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  response_id               UUID REFERENCES responses(id) ON DELETE SET NULL,
+  department                TEXT NOT NULL,
+  cluster                   TEXT NOT NULL CHECK (cluster IN ('A','B','C','D','E')),
+  cycle                     INTEGER NOT NULL DEFAULT 1 REFERENCES cycles(id),
+  submitted_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Dimension scores (avg of contributing questions, 1.0–4.0)
+  d1_awareness              FLOAT NOT NULL DEFAULT 0,
+  d2_tool_use               FLOAT NOT NULL DEFAULT 0,
+  d3_prompt_ability         FLOAT NOT NULL DEFAULT 0,
+  d4_opportunity_spotting   FLOAT NOT NULL DEFAULT 0,
+  d5_workflow_integration   FLOAT NOT NULL DEFAULT 0,
+
+  -- Overall (avg of d1–d5, 1.0–4.0)
+  overall_capability_score  FLOAT NOT NULL DEFAULT 0,
+
+  -- Derived
+  capability_label          TEXT NOT NULL DEFAULT 'AI Beginner',
+  primary_learning_focus    TEXT,
+  secondary_learning_focus  TEXT,
+  is_champion               BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- Raw Layer 2 question answers (stored as text)
+  l2_q1  TEXT,
+  l2_q2  TEXT,
+  l2_q3  TEXT,
+  l2_q4  TEXT,
+  l2_q5  TEXT,
+  l2_q6  TEXT,
+  l2_q7  TEXT,
+  l2_q8  TEXT,
+  l2_q9  TEXT,
+  l2_q10 TEXT
+);
+
+-- RLS
+ALTER TABLE individual_capability ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can insert individual_capability"
+  ON individual_capability FOR INSERT WITH CHECK (TRUE);
+CREATE POLICY "Anyone can read individual_capability"
+  ON individual_capability FOR SELECT USING (TRUE);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_ic_cycle      ON individual_capability(cycle);
+CREATE INDEX IF NOT EXISTS idx_ic_dept       ON individual_capability(department);
+CREATE INDEX IF NOT EXISTS idx_ic_cluster    ON individual_capability(cluster);
+CREATE INDEX IF NOT EXISTS idx_ic_label      ON individual_capability(capability_label);
+CREATE INDEX IF NOT EXISTS idx_ic_champion   ON individual_capability(is_champion);

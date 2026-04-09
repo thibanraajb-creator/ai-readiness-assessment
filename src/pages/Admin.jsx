@@ -1,24 +1,3 @@
-// Admin Dashboard — route: /admin
-// PIN-protected (123456). Full analytics, export, qualitative viewer, trend chart.
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  ResponsiveContainer, Tooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, LabelList,
-  LineChart, Line, Legend,
-} from 'recharts'
-import {
-  fetchResponses, fetchCycles, fetchQualitative, fetchLayer2,
-  computeOrgStats, computeDeptStats, computeTrend,
-  PILLAR_SHORT, PILLAR_KEYS,
-} from '../lib/dashboardUtils'
-import { PILLARS, MATURITY_LEVELS, DEPARTMENTS } from '../lib/surveyData'
-import { DIMENSIONS, CLUSTER_LABELS, CAPABILITY_LABELS } from '../lib/layer2Data'
-
-const CAP_LABELS = CAPABILITY_LABELS.map((c) => c.label)
-const CAP_COLORS = CAPABILITY_LABELS.map((c) => c.color)
-const CLUSTER_ORDER = ['A','B','C','D','E']
 const CAP_COLOR_MAP = Object.fromEntries(CAPABILITY_LABELS.map(c => [c.label, c.color]))
 const CLUSTER_COLOR = {A:'#00ADA9',B:'#1B3A5C',C:'#F59E0B',D:'#534AB7',E:'#3B6D11'}
 const DIM_FIELDS = ['d1_awareness','d2_tool_use','d3_prompt_ability','d4_opportunity_spotting','d5_workflow_integration']

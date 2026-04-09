@@ -4,19 +4,24 @@
 // ============================================================
 
 export const DEPARTMENTS = [
-  'Sales & Business Development',
-  'Product & Technology',
-  'Marketing',
-  'Operations',
-  'Finance & Admin',
-  'HR & People',
-  'Leadership / C-Suite',
-  'L&D / Delivery',
-  'Project Management',
-  'Branding',
-  'Acquisition',
+  'Product & Innovation',
+  'Technology',
+  'Project Management / CS / Sales Ops',
+  'HR',
   'Corporate Strategy',
+  'Finance & Accounting',
+  'International',
+  'Sales',
+  'Partnerships',
+  'Marketing',
+  'Branding',
   'Digital Team',
+  'Discovery',
+  'Development',
+  'Community',
+  'Digital (Main)',
+  'Training Team',
+  'Other',
 ]
 
 // Maturity level definitions
