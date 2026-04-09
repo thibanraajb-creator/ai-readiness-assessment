@@ -86,6 +86,15 @@ export function computeDeptStats(responses) {
     .sort((a, b) => b.overall - a.overall)
 }
 
+// Fetch all individual_capability (Layer 2) rows
+export async function fetchLayer2(cycleId = null) {
+  let query = supabase.from('individual_capability').select('*').order('id', { ascending: true })
+  if (cycleId) query = query.eq('cycle', cycleId)
+  const { data, error } = await query
+  if (error) throw error
+  return data || []
+}
+
 // Compute trend data: avg overall score per cycle
 export function computeTrend(allResponses, cycles) {
   return cycles.map((c) => {
