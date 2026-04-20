@@ -41,12 +41,15 @@ export default function Landing() {
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="bg-navy-800 text-white">
         <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-teal-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-extrabold text-lg leading-none">P</span>
-            </div>
-            <span className="font-bold text-xl tracking-tight">
-              PEOPLE<span className="text-teal-400">logy</span>
+          <div className="flex items-center">
+            <img
+              src="/peoplelogy-logo-transparent.png"
+              alt="PEOPLElogy"
+              style={{ height: '36px', width: 'auto', display: 'block' }}
+              onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
+            />
+            <span style={{ display: 'none', fontWeight: '900', fontSize: '20px' }}>
+              <span style={{ color: 'white' }}>PEOPLE</span><span style={{ color: '#00ADA9' }}>logy</span>
             </span>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-white/70">
@@ -231,12 +234,15 @@ export default function Landing() {
       {/* ── Footer ─────────────────────────────────────────── */}
       <footer className="bg-navy-900 py-8" style={{ background: '#0f2236' }}>
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-teal-500 rounded-md flex items-center justify-center">
-              <span className="text-white font-extrabold text-sm">P</span>
-            </div>
-            <span className="text-white font-bold">
-              PEOPLE<span className="text-teal-400">logy</span>
+          <div className="flex items-center">
+            <img
+              src="/peoplelogy-logo-transparent.png"
+              alt="PEOPLElogy"
+              style={{ height: '30px', width: 'auto', display: 'block' }}
+              onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
+            />
+            <span style={{ display: 'none', fontWeight: '900', fontSize: '18px' }}>
+              <span style={{ color: 'white' }}>PEOPLE</span><span style={{ color: '#00ADA9' }}>logy</span>
             </span>
           </div>
           <p className="text-white/30 text-sm">

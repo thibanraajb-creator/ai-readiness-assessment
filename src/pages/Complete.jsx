@@ -145,12 +145,15 @@ export default function Complete() {
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#00ADA9' }}>
-              <span className="text-white font-extrabold text-base leading-none">P</span>
-            </div>
-            <span className="font-bold text-lg tracking-tight" style={{ color: '#1B3A5C' }}>
-              PEOPLE<span style={{ color: '#00ADA9' }}>logy</span>
+          <Link to="/" className="flex items-center">
+            <img
+              src="/peoplelogy-logo-transparent.png"
+              alt="PEOPLElogy"
+              style={{ height: '36px', width: 'auto', display: 'block' }}
+              onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
+            />
+            <span style={{ display: 'none', fontWeight: '900', fontSize: '20px' }}>
+              <span style={{ color: '#1B3A5C' }}>PEOPLE</span><span style={{ color: '#00ADA9' }}>logy</span>
             </span>
           </Link>
           <span className="text-sm text-gray-400">Assessment Complete</span>
