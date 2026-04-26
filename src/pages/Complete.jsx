@@ -1,5 +1,6 @@
 // Individual Results page — route: /complete
 // Shows Layer 1 org readiness + Layer 2 personal capability + gap analysis
+import { useRef } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import {
   Radar,
@@ -92,6 +93,7 @@ export default function Complete() {
     )
   }
 
+  const reportRef = useRef(null)
   const { firstName, department, clusterLabel, pillarScores, overallScore, maturityLevel, layer2 } = state
   const ml = MATURITY_LEVELS[maturityLevel]
 
@@ -160,7 +162,7 @@ export default function Complete() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-10 space-y-8">
+      <main ref={reportRef} className="max-w-4xl mx-auto px-4 py-10 space-y-8">
 
         {/* ── Hero banner ── */}
         <div
@@ -465,6 +467,31 @@ export default function Complete() {
             style={{ background: '#1B3A5C' }}
           >
             View Organisation Dashboard →
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const { default: html2canvas } = await import('html2canvas')
+                const { default: jsPDF } = await import('jspdf')
+                const el = reportRef.current
+                if (!el) return
+                const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#f9fafb' })
+                const imgData = canvas.toDataURL('image/png')
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+                const pdfWidth = pdf.internal.pageSize.getWidth()
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+                const fileName = 'PEOPLElogy-AI-Report-' + firstName + '-' + new Date().toLocaleDateString().replace(/\//g, '-') + '.pdf'
+                pdf.save(fileName)
+              } catch (err) {
+                console.error('PDF error:', err)
+                alert('PDF generation failed: ' + err.message)
+              }
+            }}
+            className="flex-1 sm:flex-none px-10 py-4 rounded-xl font-bold text-white text-base transition-all hover:opacity-90 active:scale-95 shadow-md text-center"
+            style={{ background: '#00ADA9' }}
+          >
+            Download My Report (PDF)
           </button>
           <button
             onClick={() => navigate('/')}
