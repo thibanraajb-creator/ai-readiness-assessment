@@ -472,17 +472,17 @@ export default function Complete() {
           </button>
           <button
             onClick={async () => {
+              const el = reportRef.current
+              console.log('[PDF] ref element:', el)
+              if (!el) {
+                alert('Report ref not found. Please try again.')
+                return
+              }
               try {
-                const el = reportRef.current
-                if (!el) {
-                  alert('Nothing to capture')
-                  return
-                }
                 const canvas = await html2canvas(el, {
                   scale: 2,
                   useCORS: true,
                   backgroundColor: '#f9fafb',
-                  logging: true,
                 })
                 const imgData = canvas.toDataURL('image/png')
                 const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -491,7 +491,7 @@ export default function Complete() {
                 pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
                 pdf.save('PEOPLElogy-AI-Report-' + firstName + '.pdf')
               } catch (err) {
-                console.error('PDF error:', err)
+                console.error('[PDF] error:', err)
                 alert('PDF error: ' + err.message)
               }
             }}
