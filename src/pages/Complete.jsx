@@ -2,6 +2,8 @@
 // Shows Layer 1 org readiness + Layer 2 personal capability + gap analysis
 import { useRef } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 import {
   Radar,
   RadarChart,
@@ -471,21 +473,26 @@ export default function Complete() {
           <button
             onClick={async () => {
               try {
-                const { default: html2canvas } = await import('html2canvas')
-                const { default: jsPDF } = await import('jspdf')
                 const el = reportRef.current
-                if (!el) return
-                const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#f9fafb' })
+                if (!el) {
+                  alert('Nothing to capture')
+                  return
+                }
+                const canvas = await html2canvas(el, {
+                  scale: 2,
+                  useCORS: true,
+                  backgroundColor: '#f9fafb',
+                  logging: true,
+                })
                 const imgData = canvas.toDataURL('image/png')
                 const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
                 const pdfWidth = pdf.internal.pageSize.getWidth()
                 const pdfHeight = (canvas.height * pdfWidth) / canvas.width
                 pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-                const fileName = 'PEOPLElogy-AI-Report-' + firstName + '-' + new Date().toLocaleDateString().replace(/\//g, '-') + '.pdf'
-                pdf.save(fileName)
+                pdf.save('PEOPLElogy-AI-Report-' + firstName + '.pdf')
               } catch (err) {
                 console.error('PDF error:', err)
-                alert('PDF generation failed: ' + err.message)
+                alert('PDF error: ' + err.message)
               }
             }}
             className="flex-1 sm:flex-none px-10 py-4 rounded-xl font-bold text-white text-base transition-all hover:opacity-90 active:scale-95 shadow-md text-center"
