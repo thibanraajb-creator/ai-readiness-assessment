@@ -74,10 +74,13 @@ function DimBar({ label, pct, color }) {
 }
 
 export default function Complete() {
+  // ── HOOKS MUST BE AT THE TOP — before any conditional returns ──
+  const reportRef = useRef(null)
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state
 
+  // Early return AFTER all hooks
   if (!state) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 font-inter">
@@ -95,7 +98,6 @@ export default function Complete() {
     )
   }
 
-  const reportRef = useRef(null)
   const { firstName, department, clusterLabel, pillarScores, overallScore, maturityLevel, layer2 } = state
   const ml = MATURITY_LEVELS[maturityLevel]
 
@@ -111,7 +113,6 @@ export default function Complete() {
     color: p.color,
   }))
 
-  // Layer 2 dimension bars (each score out of 4 → %)
   const dimKeys = ['d1','d2','d3','d4','d5']
   const dimLabels = Object.values(DIMENSIONS)
   const dimColors = ['#00ADA9','#1B3A5C','#7C3AED','#059669','#DC2626']
@@ -123,7 +124,6 @@ export default function Complete() {
       }))
     : []
 
-  // Gap analysis
   let gapMessage = null
   let gapColor = '#22C55E'
   let gapIcon = '≈'
@@ -138,9 +138,35 @@ export default function Complete() {
       gapColor = '#00ADA9'
       gapIcon = '★'
     } else {
-      gapMessage = 'You are well aligned with your organisation\'s AI maturity. Your personal capability mirrors where the organisation currently stands.'
+      gapMessage = "You are well aligned with your organisation's AI maturity. Your personal capability mirrors where the organisation currently stands."
       gapColor = '#22C55E'
       gapIcon = '✓'
+    }
+  }
+
+  const handleDownloadPDF = async () => {
+    const el = reportRef.current
+    console.log('[PDF] ref element:', el)
+    if (!el) {
+      alert('Report not ready. Please wait a moment and try again.')
+      return
+    }
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#f9fafb',
+        allowTaint: true,
+      })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      pdf.save('PEOPLElogy-AI-Report-' + firstName + '.pdf')
+    } catch (err) {
+      console.error('[PDF] error:', err)
+      alert('PDF error: ' + err.message)
     }
   }
 
@@ -166,7 +192,7 @@ export default function Complete() {
 
       <main ref={reportRef} className="max-w-4xl mx-auto px-4 py-10 space-y-8">
 
-        {/* ── Hero banner ── */}
+        {/* Hero banner */}
         <div
           className="rounded-3xl overflow-hidden shadow-lg"
           style={{ background: 'linear-gradient(135deg, #1B3A5C 0%, #0f2236 100%)' }}
@@ -187,9 +213,7 @@ export default function Complete() {
           </div>
         </div>
 
-        {/* ══════════════════════════════════════════════════════
-            SECTION 1 — Organisation Readiness (Layer 1)
-        ══════════════════════════════════════════════════════ */}
+        {/* SECTION 1 — Organisation Readiness */}
         <section>
           <div className="flex items-center gap-3 mb-4">
             <div
@@ -201,7 +225,6 @@ export default function Complete() {
             </h2>
           </div>
 
-          {/* Score + badge row */}
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-4">
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <ScoreRing pct={overallScore} size={140} color="#00ADA9" />
@@ -219,7 +242,6 @@ export default function Complete() {
             </div>
           </div>
 
-          {/* Radar + pillar breakdown */}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-sm font-bold mb-3" style={{ color: '#1B3A5C' }}>Pillar Radar</h3>
@@ -264,7 +286,6 @@ export default function Complete() {
                   </div>
                 ))}
               </div>
-              {/* Maturity scale */}
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">Maturity Scale</p>
                 <div className="flex gap-1">
@@ -281,9 +302,7 @@ export default function Complete() {
           </div>
         </section>
 
-        {/* ══════════════════════════════════════════════════════
-            SECTION 2 — Personal AI Capability (Layer 2)
-        ══════════════════════════════════════════════════════ */}
+        {/* SECTION 2 — Personal AI Capability */}
         {layer2 && (
           <section>
             <div className="flex items-center gap-3 mb-4">
@@ -296,7 +315,6 @@ export default function Complete() {
               </h2>
             </div>
 
-            {/* Score + label card */}
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-4">
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 <ScoreRing pct={layer2.overallPct} size={140} color={layer2.capabilityColor} />
@@ -326,7 +344,6 @@ export default function Complete() {
               </div>
             </div>
 
-            {/* Dimension bars */}
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-sm font-bold mb-4" style={{ color: '#1B3A5C' }}>
                 Capability Dimensions
@@ -336,8 +353,6 @@ export default function Complete() {
                   <DimBar key={d.label} label={d.label} pct={d.pct} color={d.color} />
                 ))}
               </div>
-
-              {/* Capability scale legend */}
               <div className="mt-5 pt-4 border-t border-gray-100">
                 <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">Capability Scale</p>
                 <div className="flex gap-1 flex-wrap">
@@ -359,9 +374,7 @@ export default function Complete() {
           </section>
         )}
 
-        {/* ══════════════════════════════════════════════════════
-            SECTION 3 — Gap Analysis
-        ══════════════════════════════════════════════════════ */}
+        {/* SECTION 3 — Gap Analysis */}
         {layer2 && (
           <section>
             <div className="flex items-center gap-3 mb-4">
@@ -378,9 +391,7 @@ export default function Complete() {
               className="rounded-3xl p-6"
               style={{ background: `${gapColor}15`, border: `2px solid ${gapColor}40` }}
             >
-              {/* Visual comparison */}
               <div className="flex items-center gap-4 mb-6">
-                {/* Org score */}
                 <div className="flex-1 text-center">
                   <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">
                     Organisation Readiness
@@ -393,7 +404,6 @@ export default function Complete() {
                   </div>
                 </div>
 
-                {/* Gap indicator */}
                 <div className="flex flex-col items-center gap-1">
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-white text-2xl font-black shadow"
@@ -406,7 +416,6 @@ export default function Complete() {
                   </div>
                 </div>
 
-                {/* Personal score */}
                 <div className="flex-1 text-center">
                   <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">
                     Personal Capability
@@ -420,7 +429,6 @@ export default function Complete() {
                 </div>
               </div>
 
-              {/* Dual progress bars */}
               <div className="space-y-3 mb-5">
                 <div>
                   <div className="flex justify-between text-xs font-medium text-gray-600 mb-1">
@@ -448,7 +456,6 @@ export default function Complete() {
                 </div>
               </div>
 
-              {/* Interpretation */}
               <div
                 className="rounded-2xl p-4"
                 style={{ background: 'rgba(255,255,255,0.6)' }}
@@ -461,7 +468,7 @@ export default function Complete() {
           </section>
         )}
 
-        {/* ── Actions ── */}
+        {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2 pb-6">
           <button
             onClick={() => navigate('/dashboard')}
@@ -471,30 +478,7 @@ export default function Complete() {
             View Organisation Dashboard →
           </button>
           <button
-            onClick={async () => {
-              const el = reportRef.current
-              console.log('[PDF] ref element:', el)
-              if (!el) {
-                alert('Report ref not found. Please try again.')
-                return
-              }
-              try {
-                const canvas = await html2canvas(el, {
-                  scale: 2,
-                  useCORS: true,
-                  backgroundColor: '#f9fafb',
-                })
-                const imgData = canvas.toDataURL('image/png')
-                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-                const pdfWidth = pdf.internal.pageSize.getWidth()
-                const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-                pdf.save('PEOPLElogy-AI-Report-' + firstName + '.pdf')
-              } catch (err) {
-                console.error('[PDF] error:', err)
-                alert('PDF error: ' + err.message)
-              }
-            }}
+            onClick={handleDownloadPDF}
             className="flex-1 sm:flex-none px-10 py-4 rounded-xl font-bold text-white text-base transition-all hover:opacity-90 active:scale-95 shadow-md text-center"
             style={{ background: '#00ADA9' }}
           >
